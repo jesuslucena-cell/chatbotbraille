@@ -23,10 +23,10 @@ vectorstore = FAISS.load_local(
 
 retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
-# 3. Configurar modelo LLM con el ID estándar de Groq (Llama 3 70B)
+# 3. Configurar modelo LLM activo en Groq
 llm = ChatGroq(
     temperature=0.2,
-    model_name="llama3-70b-8192",
+    model_name="llama-3.1-8b-instant",
     groq_api_key=GROQ_API_KEY
 )
 
