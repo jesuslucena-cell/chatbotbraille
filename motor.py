@@ -1,5 +1,5 @@
 import os
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings import FastEmbedEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_groq import ChatGroq
 from langchain_classic.chains import create_retrieval_chain
@@ -9,11 +9,9 @@ from langchain_core.prompts import ChatPromptTemplate
 # Configurar API Key de Groq
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
-# 1. Cargar Embeddings utilizando el backend liviano
-embeddings = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2",
-    model_kwargs={'device': 'cpu'},
-    encode_kwargs={'normalize_embeddings': True}
+# 1. Cargar Embeddings ultraligeros con FastEmbed (ONNX, sin PyTorch)
+embeddings = FastEmbedEmbeddings(
+    model_name="BAAI/bge-small-en-v1.5"
 )
 
 # 2. Cargar índice FAISS precalculado
