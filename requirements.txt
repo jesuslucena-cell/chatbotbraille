@@ -4,6 +4,7 @@ fastapi
 uvicorn
 pydantic
 langchain
+langchain-classic
 langchain-community
 langchain-huggingface
 langchain-groq
