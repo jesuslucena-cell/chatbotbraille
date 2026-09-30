@@ -1,9 +1,11 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import uvicorn
 
-# Importar la función desde motor.py
 from motor import consultar_bot
 
 app = FastAPI(
@@ -12,7 +14,6 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Configurar CORS para permitir peticiones desde la interfaz web sin bloqueos
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,22 +22,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Definir la estructura de la consulta recibida
 class Consulta(BaseModel):
     pregunta: str
 
-# Ruta de prueba de estado
+# Montar carpeta de archivos estáticos si existe
+if os.path.exists("static"):
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Servir el HTML del chat al entrar a la URL raíz
 @app.get("/")
 def home():
-    return {"status": "ok", "mensaje": "Servidor del Chatbot EducaMadrid funcionando correctamente."}
+    if os.path.exists("static/index.html"):
+        return FileResponse("static/index.html")
+    elif os.path.exists("index.html"):
+        return FileResponse("index.html")
+    return {"status": "ok", "mensaje": "Servidor activo. Coloca tu index.html para ver la interfaz."}
 
-# Ruta principal del Chatbot
-# NOTA: Se usa 'def' (síncrono) para ejecutar LangChain en un hilo secundario sin congelar FastAPI
 @app.post("/preguntar")
 def preguntar(data: Consulta):
     texto_respuesta = consultar_bot(data.pregunta)
-    
-    # Devuelve tanto 'respuesta' como 'answer' para garantizar compatibilidad con el JS del frontend
     return {
         "respuesta": texto_respuesta,
         "answer": texto_respuesta
