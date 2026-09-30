@@ -1,19 +1,19 @@
 import os
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_groq import ChatGroq
 from langchain_classic.chains import create_retrieval_chain
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
 
-# Configurar API Key de Groq
+# Configurar claves de API
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+HF_TOKEN = os.environ.get("HF_TOKEN")
 
-# 1. Cargar Embeddings ligeros
-embeddings = HuggingFaceEmbeddings(
-    model_name="all-MiniLM-L6-v2",
-    model_kwargs={'device': 'cpu'},
-    encode_kwargs={'normalize_embeddings': True}
+# 1. Embeddings ligeros mediante API remota (0 MB consumo de RAM)
+embeddings = HuggingFaceInferenceAPIEmbeddings(
+    api_key=HF_TOKEN,
+    model_name="sentence-transformers/all-MiniLM-L6-v2"
 )
 
 # 2. Cargar índice FAISS precalculado
