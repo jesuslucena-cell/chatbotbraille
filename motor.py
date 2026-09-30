@@ -2,60 +2,55 @@ import os
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_groq import ChatGroq
+from langchain.chains import create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.output_parsers import StrOutputParser
 
-# 1. Cargar embeddings ligeros para CPU
+# Configurar API Key de Groq
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+
+# 1. Cargar Embeddings ligeros
 embeddings = HuggingFaceEmbeddings(
     model_name="all-MiniLM-L6-v2",
-    model_kwargs={'device': 'cpu'}
+    model_kwargs={'device': 'cpu'},
+    encode_kwargs={'normalize_embeddings': True}
 )
 
-# 2. Cargar índice FAISS
-INDEX_PATH = "faiss_index"
+# 2. Cargar índice FAISS precalculado
+vectorstore = FAISS.load_local(
+    "faiss_index", 
+    embeddings, 
+    allow_dangerous_deserialization=True
+)
 
-if os.path.exists(INDEX_PATH):
-    vectorstore = FAISS.load_local(
-        INDEX_PATH, 
-        embeddings, 
-        allow_dangerous_deserialization=True
-    )
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
-else:
-    retriever = None
+retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
 # 3. Configurar modelo LLM con Groq
 llm = ChatGroq(
-    temperature=0,
-    model_name="llama3-8b-8192",
-    groq_api_key=os.getenv("GROQ_API_KEY")
+    temperature=0.2,
+    model_name="llama-3.1-8b-instant",
+    groq_api_key=GROQ_API_KEY
 )
 
-# 4. Plantilla de prompt
-template = """Responde a la pregunta basada únicamente en el siguiente contexto administrativo:
+# 4. Prompt del sistema
+system_prompt = (
+    "Eres un asistente administrativo educativo amigable e informativo para EducaMadrid.\n"
+    "Responde a la pregunta del usuario utilizando únicamente el contexto proporcionado a continuación.\n"
+    "Si la respuesta no se encuentra en el contexto, di amablemente que no dispones de esa información.\n\n"
+    "Contexto:\n{context}"
+)
 
-Contexto:
-{context}
+prompt = ChatPromptTemplate.from_messages([
+    ("system", system_prompt),
+    ("human", "{input}"),
+])
 
-Pregunta: {question}
-
-Respuesta clara y directa:"""
-
-prompt = ChatPromptTemplate.from_template(template)
-
-def format_docs(docs):
-    return "\n\n".join(doc.page_content for doc in docs)
+question_answer_chain = create_stuff_documents_chain(llm, prompt)
+rag_chain = create_retrieval_chain(retriever, question_answer_chain)
 
 def consultar_bot(pregunta: str) -> str:
-    if not retriever:
-        return "El sistema aún no tiene cargada la base de datos de documentos."
-    
-    chain = (
-        {"context": retriever | format_docs, "question": RunnablePassthrough()}
-        | prompt
-        | llm
-        | StrOutputParser()
-    )
-    
-    return chain.invoke(pregunta)
+    try:
+        response = rag_chain.invoke({"input": pregunta})
+        return response["answer"]
+    except Exception as e:
+        return f"Error al procesar la consulta: {str(e)}"
