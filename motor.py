@@ -1,46 +1,61 @@
 import os
-from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain_text_splitters import CharacterTextSplitter
+from langchain_groq import ChatGroq
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
 
-# --- CONFIGURACIÓN ---
-# Pega aquí tu API KEY de Groq entre las comillas
-GROQ_API_KEY = "TU_API_KEY_DE_GROQ_AQUÍ"
-MODELO_IA = "llama3-8b-8192"
+# 1. Cargar embeddings ligeros para CPU
+embeddings = HuggingFaceEmbeddings(
+    model_name="all-MiniLM-L6-v2",
+    model_kwargs={'device': 'cpu'}
+)
 
-# --- CREAR BASE DE CONOCIMIENTO ---
-print("Cargando base de conocimiento...")
-texto_administrativo_prueba = """
-CALENDARIO ACADÉMICO 2024:
-- Inicio de clases: 10 de septiembre.
-- Exámenes primer trimestre: del 15 al 20 de diciembre.
-- Plazo matrícula segundo trimestre: hasta el 10 de enero.
-- Tutorías: Martes de 10:00 a 12:00.
-"""
+# 2. Cargar índice FAISS
+INDEX_PATH = "faiss_index"
 
-text_splitter = CharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-docs = text_splitter.create_documents([texto_administrativo_prueba])
+if os.path.exists(INDEX_PATH):
+    vectorstore = FAISS.load_local(
+        INDEX_PATH, 
+        embeddings, 
+        allow_dangerous_deserialization=True
+    )
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+else:
+    retriever = None
 
-embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-vectorstore = FAISS.from_documents(docs, embeddings)
-retriever = vectorstore.as_retriever()
+# 3. Configurar modelo LLM con Groq
+llm = ChatGroq(
+    temperature=0,
+    model_name="llama3-8b-8192",
+    groq_api_key=os.getenv("GROQ_API_KEY")
+)
 
-llm = ChatGroq(temperature=0, groq_api_key=GROQ_API_KEY, model_name=MODELO_IA)
-print("¡Motor del chatbot listo!")
+# 4. Plantilla de prompt
+template = """Responde a la pregunta basada únicamente en el siguiente contexto administrativo:
 
-# --- FUNCIÓN DE CONSULTA ---
-def preguntar_al_chatbot(pregunta_usuario):
-    # 1. Buscar los fragmentos más relevantes en la base de conocimiento
-    docs_relacionados = retriever.invoke(pregunta_usuario)
-    contexto = "\n\n".join([doc.page_content for doc in docs_relacionados])
+Contexto:
+{context}
+
+Pregunta: {question}
+
+Respuesta clara y directa:"""
+
+prompt = ChatPromptTemplate.from_template(template)
+
+def format_docs(docs):
+    return "\n\n".join(doc.page_content for doc in docs)
+
+def consultar_bot(pregunta: str) -> str:
+    if not retriever:
+        return "El sistema aún no tiene cargada la base de datos de documentos."
     
-    # 2. Enviar la pregunta y el contexto directamente a Groq
-    prompt = f"""Eres un asistente administrativo. Responde de forma clara usando únicamente la siguiente información:
-
-{contexto}
-
-Pregunta del alumno: {pregunta_usuario}"""
-
-    respuesta = llm.invoke(prompt)
-    return respuesta.content
+    chain = (
+        {"context": retriever | format_docs, "question": RunnablePassthrough()}
+        | prompt
+        | llm
+        | StrOutputParser()
+    )
+    
+    return chain.invoke(pregunta)
