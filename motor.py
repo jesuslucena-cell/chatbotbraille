@@ -6,15 +6,15 @@ from langchain_classic.chains import create_retrieval_chain
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
 
-# Obtener clave API de Groq
+# Obtener clave API de Groq desde las variables de entorno
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
-# 1. Embeddings ligeros
+# 1. Embeddings ultraligeros sin PyTorch (optimizado para Render)
 embeddings = FastEmbedEmbeddings(
     model_name="BAAI/bge-small-en-v1.5"
 )
 
-# 2. Cargar FAISS
+# 2. Cargar índice de vectores FAISS precalculado
 vectorstore = FAISS.load_local(
     "faiss_index", 
     embeddings, 
@@ -23,14 +23,14 @@ vectorstore = FAISS.load_local(
 
 retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
-# 3. Modelo principal recomendado por Groq
+# 3. Configurar modelo LLM estable en Groq
 llm = ChatGroq(
     temperature=0.2,
-    model_name="llama-3.3-70b-versatile",
+    model_name="llama-3.1-8b-instant",
     groq_api_key=GROQ_API_KEY
 )
 
-# 4. Prompt del sistema
+# 4. Plantilla del Prompt del sistema
 system_prompt = (
     "Eres un asistente administrativo educativo amigable e informativo para EducaMadrid.\n"
     "Responde a la pregunta del usuario utilizando únicamente el contexto proporcionado a continuación.\n"
