@@ -2,10 +2,9 @@
 torch
 fastapi
 uvicorn
+pydantic
 langchain
 langchain-community
-langchain-core
-langchain-groq
 langchain-huggingface
+langchain-groq
 faiss-cpu
-sentence-transformers
