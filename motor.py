@@ -1,20 +1,20 @@
 import os
 from langchain_community.embeddings import FastEmbedEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain_groq import ChatGroq
+from langchain_openai import ChatOpenAI
 from langchain_classic.chains import create_retrieval_chain
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
 
-# Obtener clave API de Groq desde las variables de entorno
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+# Obtener clave API de OpenRouter desde Render
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 
-# 1. Embeddings ultraligeros sin PyTorch (optimizado para Render)
+# 1. Embeddings ligeros
 embeddings = FastEmbedEmbeddings(
     model_name="BAAI/bge-small-en-v1.5"
 )
 
-# 2. Cargar índice de vectores FAISS precalculado
+# 2. Cargar FAISS
 vectorstore = FAISS.load_local(
     "faiss_index", 
     embeddings, 
@@ -23,14 +23,15 @@ vectorstore = FAISS.load_local(
 
 retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
-# 3. Configurar modelo LLM estable en Groq
-llm = ChatGroq(
-    temperature=0.2,
-    model_name="llama-3.1-8b-instant",
-    groq_api_key=GROQ_API_KEY
+# 3. LLM Gratuito activo en OpenRouter (NVIDIA Nemotron 3.5 Lightning)
+llm = ChatOpenAI(
+    model="nvidia/nemotron-3.5-lightning:free",
+    openai_api_key=OPENROUTER_API_KEY,
+    openai_api_base="https://openrouter.ai/api/v1",
+    temperature=0.2
 )
 
-# 4. Plantilla del Prompt del sistema
+# 4. Prompt del sistema
 system_prompt = (
     "Eres un asistente administrativo educativo amigable e informativo para EducaMadrid.\n"
     "Responde a la pregunta del usuario utilizando únicamente el contexto proporcionado a continuación.\n"
