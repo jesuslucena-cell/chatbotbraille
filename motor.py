@@ -9,7 +9,7 @@ from langchain_core.prompts import ChatPromptTemplate
 # Obtener clave API de Groq desde las variables de entorno
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
-# 1. Embeddings ultraligeros sin PyTorch (evita errores de memoria RAM en Render)
+# 1. Embeddings ultraligeros sin PyTorch
 embeddings = FastEmbedEmbeddings(
     model_name="BAAI/bge-small-en-v1.5"
 )
@@ -23,10 +23,10 @@ vectorstore = FAISS.load_local(
 
 retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
-# 3. Configurar modelo LLM con el identificador de modelo activo de Groq
+# 3. Configurar modelo LLM con el ID estándar de Groq (Llama 3 70B)
 llm = ChatGroq(
     temperature=0.2,
-    model_name="llama-3.3-70b-versatile",
+    model_name="llama3-70b-8192",
     groq_api_key=GROQ_API_KEY
 )
 
