@@ -1,32 +1,20 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from pydantic import BaseModel
-import uvicorn
-# Importamos la función que creamos en el archivo motor.py
-from motor import preguntar_al_chatbot
+from motor import consultar_bot
 
-app = FastAPI()
+app = FastAPI(
+    title="Chatbot Administrativo",
+    description="API RAG para consultas administrativas de EducaMadrid"
+)
 
-# Definimos cómo debe ser la pregunta que nos envían (un texto)
-class PreguntaRequest(BaseModel):
+class Consulta(BaseModel):
     pregunta: str
 
 @app.get("/")
 def home():
-    return {"mensaje": "API del Asistente Administrativo activa"}
+    return {"status": "API activa. Ve a /docs para la interfaz interactiva."}
 
-# Esta es la dirección web real a la que llamará Moodle: TU_URL/preguntar
 @app.post("/preguntar")
-async def recibir_pregunta(request: PreguntaRequest):
-    if not request.pregunta:
-        raise HTTPException(status_code=400, detail="La pregunta no puede estar vacía")
-    
-    # Usamos nuestro motor Python para obtener la respuesta
-    try:
-        respuesta_ia = preguntar_al_chatbot(request.pregunta)
-        return {"respuesta": respuesta_ia}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-if __name__ == "__main__":
-    # Esto es para probar en tu ordenador. Luego lo cambiaremos.
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+def preguntar(consulta: Consulta):
+    respuesta = consultar_bot(consulta.pregunta)
+    return {"respuesta": respuesta}
